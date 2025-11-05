@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RadarEye360 Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #121212;
+    }
+
+    #map {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .leaflet-control-attribution,
+    .leaflet-control-zoom,
+    .leaflet-control-scale {
+      display: none !important;
+    }
+
+    .leaflet-popup-content-wrapper {
+      background: #1e1e1e;
+      color: #f0f0f0;
+      border-radius: 8px;
+    }
+
+    .leaflet-popup-tip {
+      background: #1e1e1e;
+    }
+
+    .navigate-btn, .report-btn, .back-btn {
+      position: absolute;
+      z-index: 999;
+      background: linear-gradient(135deg, #2196f3, #1e88e5);
+      color: #fff;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s ease-in-out;
+    }
+
+    .navigate-btn:hover, .report-btn:hover, .back-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .navigate-btn { top: 1rem; left: 1rem; }
+    .report-btn { top: 1rem; left: 160px; }
+    .back-btn { top: 1rem; right: 1rem; background: linear-gradient(135deg, #555, #333); }
+
+    .speed-limit-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #ffffff;
+      border: 4px solid #ff5252;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ff5252;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      z-index: 9999;
+      animation: fadeInOut 10s ease-in-out;
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, 20px); }
+      10%, 90% { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -20px); }
+    }
+
+    #infoBox {
+      position: absolute;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(30, 30, 30, 0.85);
+      color: #fff;
+      padding: 0.6rem 1.2rem;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      z-index: 999;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .leaflet-control-geocoder-form input {
+      background-color: #2c2c2c;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 5px 10px;
+    }
+
+    .leaflet-control-geocoder-form input::placeholder {
+      color: #aaa;
+    }
+
+    .leaflet-control-geocoder-icon {
+      filter: invert(100%);
+    }
+
+    form#reportForm {
+  background-color: #1e1e1e;
+  color: #f0f0f0;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 15px;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  width: 100%;
+  max-width: 250px;
+}
+
+form#reportForm label {
+  display: block;
+  margin: 8px 0 4px;
+  font-weight: 600;
+  color: #90caf9;
+}
+
+form#reportForm select,
+form#reportForm input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background-color: #2c2c2c;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+form#reportForm select:focus,
+form#reportForm input[type="text"]:focus {
+  outline: none;
+  border-color: #2196f3;
+}
+
+form#reportForm button[type="submit"] {
+  width: 100%;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #03a9f4, #0288d1);
+  border: none;
+  color: white;
+  font-weight: bold;
+  font-size: 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+form#reportForm button[type="submit"]:hover {
+  background: linear-gradient(135deg, #0288d1, #0277bd);
+  transform: translateY(-1px);
+}
+
+.navigate-btn, .report-btn, .clear-btn, .back-btn {
+  position: absolute;
+  z-index: 999;
+  background: linear-gradient(135deg, #2196f3, #1e88e5);
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease-in-out;
+}
+
+.navigate-btn:hover, .report-btn:hover, .clear-btn:hover, .back-btn:hover {
+  transform: translateY(-2px);
+}
+
+.report-btn { top: 1rem; left: 1rem; }
+.clear-btn  { top: 4.4rem; left: 1rem; background: linear-gradient(135deg, #e53935, #b71c1c); }
+.back-btn   { top: 1rem; right: 1rem; background: linear-gradient(135deg, #555, #333); }
+
+.dashboard-btn {
+  position: absolute;
+  top: 4.4rem;
+  right: 1rem;
+  z-index: 999;
+  background: linear-gradient(135deg, #03a9f4, #0288d1);
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease-in-out;
+}
+
+.dashboard-btn:hover {
+  transform: translateY(-2px);
+}
+
+
+
+
+  </style>
+</head>
+<body>
+  <button class="report-btn" onclick="enableReportMode()">Report Camera</button>
+  <button class="clear-btn" onclick="clearReports()">Clear Reports</button>
+  <button class="back-btn" onclick="goBack()">Back to Home</button>
+  <button class="dashboard-btn" onclick="window.location.href='dashboard.html'">Go to Dashboard</button>
+  <div id="map"></div>
+  <div id="infoBox"></div>
+  <audio id="alertSound" src="https://www.soundjay.com/buttons/sounds/beep-07.mp3" preload="auto"></audio>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  <script>
+    const arrowIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', iconSize: [48, 48], iconAnchor: [24, 24] });
+    const redPinIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', iconSize: [40, 40], iconAnchor: [20, 40] });
+
+    const cameraData = [
+      { lat: 16.694819, lng: 74.257449, desc: 'Speed Camera' },
+      { lat: 17.107033, lng: 74.204089, desc: 'Speed Camera' },
+      { lat: 17.359601, lng: 74.125582, desc: 'Speed Camera' },
+      { lat: 17.462496, lng: 74.089178, desc: 'Speed Camera' },
+      { lat: 17.609502, lng: 74.028503, desc: 'Speed Camera' },
+      { lat: 17.743070, lng: 74.004830, desc: 'Speed Camera' },
+      { lat: 18.081334, lng: 74.000996, desc: 'Speed Camera' }
+    ];
+
+    const redLightCameras = [
+      { lat: 16.704, lng: 74.243, desc: 'Red Light Camera' },
+      { lat: 16.696, lng: 74.251, desc: 'Red Light Camera' },
+      
+    ];
+
+    const signalIcon = L.icon({
+      iconUrl: 'https://cdn-icons-png.flaticon.com/512/3267/3267422.png',
+      iconSize: [40, 40],
+      iconAnchor: [20, 40]
+    });
+
+// Leaflet map centered on Kolhapur
+    const map = L.map('map').setView([16.7, 74.25], 13);
+
+// Add OpenStreetMap tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Add speed camera icons
+    cameraData.forEach((cam) => {
+      const speed = Math.floor(Math.random() * 7) * 10 + 80;
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="speed-limit-icon">${speed}</div>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
+      L.marker([cam.lat, cam.lng], { icon }).addTo(map).bindPopup(`${cam.desc}: ${speed} km/h`);
+    });
+
+    // Add red light cameras
+    redLightCameras.forEach((cam) => {
+      L.marker([cam.lat, cam.lng], { icon: signalIcon }).addTo(map).bindPopup(cam.desc);
+    });
+
+    let userMarker, routingControl, reporting = false, userLatLng;
+    let alertedCameras = new Set();
+
+    //Gives curent location by asking permission
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(position => {
+        userLatLng = [position.coords.latitude, position.coords.longitude];
+        if (userMarker) userMarker.setLatLng(userLatLng);
+        else {
+          userMarker = L.marker(userLatLng, { icon: arrowIcon }).addTo(map).bindPopup('You are here').openPopup();
+          map.setView(userLatLng, 15);
+        }
+      });
+    }
+
+    L.Control.geocoder({ defaultMarkGeocode: false })
+      .on('markgeocode', function(e) {
+        const destLatLng = e.geocode.center;
+        map.setView(destLatLng, 15);
+        if (routingControl) routingControl.remove();
+
+        //Adds green navigation line
+        routingControl = L.Routing.control({
+          waypoints: [L.latLng(userLatLng), destLatLng],
+          createMarker: (i, wp, nWps) => i === nWps - 1 ? L.marker(wp.latLng, { icon: redPinIcon }) : null,
+          addWaypoints: false,
+          draggableWaypoints: false,
+          fitSelectedRoutes: true,
+          lineOptions: { styles: [{ color: 'lime', weight: 4 }] }
+        }).addTo(map);
+
+        //Finds shortest route and ETA
+        routingControl.on('routesfound', function(e) {
+          const route = e.routes[0];
+          const coords = route.coordinates;
+          const distanceKm = (route.summary.totalDistance / 1000).toFixed(1);
+          const durationMin = Math.round(route.summary.totalTime / 60);
+          document.getElementById('infoBox').style.display = 'block';
+          document.getElementById('infoBox').innerHTML = `Distance: ${distanceKm} km | ETA: ${durationMin} min`;
+
+          //Speed camera toast pop up
+          cameraData.forEach((cam, idx) => {
+            for (const coord of coords) {
+              const dist = getDistance(cam.lat, cam.lng, coord.lat, coord.lng);
+              if (dist <= 3 && !alertedCameras.has(`speed-${idx}`)) {
+                alertedCameras.add(`speed-${idx}`);
+                showToast("🚨 Speed Camera Ahead: " + cam.desc);
+                break;
+              }
+            }
+          });
+
+          //Red Light camera popup
+          redLightCameras.forEach((cam, idx) => {
+            for (const coord of coords) {
+              const dist = getDistance(cam.lat, cam.lng, coord.lat, coord.lng);
+              if (dist <= 3 && !alertedCameras.has(`signal-${idx}`)) {
+                alertedCameras.add(`signal-${idx}`);
+                showToast("🚦 Red Light Camera Ahead: " + cam.desc);
+                break;
+              }
+            }
+          });
+        });
+      }).addTo(map);
+
+    // Calculate distance (Haversine formula) between two lat/lng in km
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    // Show toast with optional sound when near a speed camera
+    function showToast(message) {
+      const sound = document.getElementById('alertSound');
+      if (sound) sound.play();
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerText = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 10000); // 10s display
+    }
+
+    // Report mode toggle
+function enableReportMode() {
+  reporting = true;
+  alert("Tap on the map where you'd like to report a new camera.");
+}
+
+// Show form on map click
+map.on('click', function(e) {
+  if (!reporting) return;
+  reporting = false;
+
+  const latlng = e.latlng;
+  const popupContent = `
+  <form id="reportForm" onsubmit="submitReport(event, ${latlng.lat}, ${latlng.lng})">
+    <label for="cameraType">🚧 Camera Type</label>
+    <select id="cameraType" required>
+      <option value="Speed Camera">Speed Camera</option>
+      <option value="Red Light Camera">Red Light Camera</option>
+      <option value="Traffic Camera">Traffic Camera</option>
+    </select>
+
+    <label for="cameraDesc">📝 Description</label>
+    <input type="text" id="cameraDesc" placeholder="Optional description..." />
+
+    <button type="submit">📍 Submit Report</button>
+  </form>
+`;
+
+
+  L.popup().setLatLng(latlng).setContent(popupContent).openOn(map);
+});
+
+// Submit form handler
+function submitReport(event, lat, lng) {
+  event.preventDefault();
+  const type = document.getElementById('cameraType').value;
+  const desc = document.getElementById('cameraDesc').value || type;
+
+  map.closePopup();
+
+  // Add marker immediately
+  L.marker([lat, lng]).addTo(map).bindPopup(desc);
+
+  // Save in localStorage
+  const reported = JSON.parse(localStorage.getItem('reportedCameras') || '[]');
+  reported.push({ lat, lng, desc });
+  localStorage.setItem('reportedCameras', JSON.stringify(reported));
+
+  alert("Camera reported successfully!");
+}
+
+// Load stored reports on startup
+const stored = JSON.parse(localStorage.getItem('reportedCameras') || '[]');
+stored.forEach(({ lat, lng, desc }) => {
+  L.marker([lat, lng]).addTo(map).bindPopup(desc);
+});
+
+function clearReports() {
+  localStorage.removeItem('reportedCameras');
+  alert("All reported cameras cleared!");
+  location.reload(); // refresh to remove markers
+}
+    function goBack() {
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>
